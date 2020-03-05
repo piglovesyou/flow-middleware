@@ -123,4 +123,4 @@ MIT
 
 # Author
 
-Soichi Takamura<thepiglovesyou@gmail.com>
+Soichi Takamura \<thepiglovesyou@gmail.com>
