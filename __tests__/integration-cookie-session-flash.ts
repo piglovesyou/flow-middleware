@@ -95,9 +95,6 @@ describe('Integration', () => {
       cookieSession({
         name: 'passportSession',
         signed: false,
-        // domain: url.parse(req.url).host,
-        maxAge: 24 * 60 * 60 * 1000, // 24 hours
-        httpOnly: false,
       }),
       (req, _res, next) => {
         // cookie-session's supposed to embed "session" property,
