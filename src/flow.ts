@@ -8,50 +8,85 @@ import { promisify } from 'util';
 import { THandler } from './types';
 
 function getProxyGetter<T extends object>(
+  nativeObj: IncomingMessage | ServerResponse,
   disposor: Record<any, any>,
   expressProto: typeof expressReqProto | typeof expressResProto,
 ) {
-  const proxyGetter: ProxyHandler<T>['get'] = (target, property, receiver) => {
-    let obj: any;
-    let thisContext: any;
+  const proxyGetter: ProxyHandler<T>['get'] = (_, property, proxyObj) => {
+    // let obj: any;
+    // let thisContext: any;
 
     if (Reflect.has(disposor, property)) {
       // Arbitrary properties such as "session"
-      obj = disposor;
-      thisContext = receiver;
-    } else if (Reflect.has(target, property)) {
-      // Access to the original http.IncomingMessage
-      obj = target;
-      thisContext = target;
+      return Reflect.get(disposor, property);
     } else if (Reflect.has(expressProto, property)) {
       // Access to express API.
-      obj = expressProto;
-      thisContext = receiver;
-    } else {
-      // Not found so returning undefined
-      return undefined;
+      const value = Reflect.get(expressProto, property);
+      if (typeof value === 'function') return value.bind(nativeObj);
+      return value;
+    } else if (Reflect.has(nativeObj, property)) {
+      // Access to the original http.IncomingMessage
+
+      const value = Reflect.get(nativeObj, property);
+      if (property === 'login' || property === 'logIn') {
+        return value.bind(proxyObj);
+      }
+
+      if (typeof value === 'function') return value.bind(nativeObj);
+      return value;
     }
 
-    const value = Reflect.get(obj, property, receiver);
-
-    // Some functions internally expects original object, so we bind it.
-    if (typeof value === 'function') return value.bind(thisContext);
-
-    return value;
+    // Not found so returning undefined
+    return undefined;
   };
   return proxyGetter;
 }
 
-function getProxySetter<T extends object>(disposor: Record<any, any>) {
-  const proxySetter: ProxyHandler<T>['set'] = (target, property, value) => {
+function getProxySetter<T extends object>(
+  nativeObj: IncomingMessage | ServerResponse,
+  disposor: Record<any, any>,
+  // expressProto: typeof expressReqProto | typeof expressResProto,
+) {
+  const proxySetter: ProxyHandler<T>['set'] = (_, property, value) => {
     // "_header" etc.
-    if (Reflect.has(target, property)) {
-      return Reflect.set(target, property, value);
+    if (Reflect.has(nativeObj, property)) {
+      return Reflect.set(nativeObj, property, value);
     }
 
     return Reflect.set(disposor, property, value);
   };
   return proxySetter;
+}
+
+function getProxyDefineProeprpty<T extends object>(
+  nativeObj: IncomingMessage | ServerResponse,
+  disposor: Record<any, any>,
+  // expressProto: typeof expressReqProto | typeof expressResProto,
+) {
+  const wrap: any = (fn: any) => {
+    return new Proxy(fn, {
+      apply(target: any, thisArg: any, argArray?: any): any {
+        return Reflect.apply(fn, nativeObj, argArray);
+      },
+    });
+  };
+  const proxyFn: ProxyHandler<T>['defineProperty'] = (
+    _,
+    property: string | number | symbol,
+    attributes: PropertyDescriptor,
+  ) => {
+    if (Reflect.has(nativeObj, property)) {
+      throw new Error('what?');
+    }
+
+    if (attributes.get) attributes.get = wrap(attributes.get);
+    if (attributes.set) attributes.set = wrap(attributes.set);
+    if (attributes.value && typeof attributes.value === 'function')
+      attributes.value = wrap(attributes.value);
+
+    return Reflect.defineProperty(_, property, attributes);
+  };
+  return proxyFn;
 }
 
 export default function flow<TReqExt = {}, TResExt = {}>(
@@ -64,13 +99,15 @@ export default function flow<TReqExt = {}, TResExt = {}>(
     const resDisposor = {} as TResExt;
 
     // Wrap req and res
-    const wrappedReq = new Proxy<IncomingMessage>(req, {
-      get: getProxyGetter(reqDisposor, expressReqProto),
-      set: getProxySetter(reqDisposor),
+    const wrappedReq = new Proxy<any>(reqDisposor, {
+      get: getProxyGetter(req, reqDisposor, expressReqProto),
+      set: getProxySetter(req, reqDisposor),
+      defineProperty: getProxyDefineProeprpty(req, reqDisposor),
     });
-    const wrappedRes = new Proxy<ServerResponse>(res, {
-      get: getProxyGetter(resDisposor, expressResProto),
-      set: getProxySetter(resDisposor),
+    const wrappedRes = new Proxy<any>(resDisposor, {
+      get: getProxyGetter(res, resDisposor, expressResProto),
+      set: getProxySetter(res, resDisposor),
+      defineProperty: getProxyDefineProeprpty(res, reqDisposor),
     });
 
     // TODO: This goes wrong. Why?
