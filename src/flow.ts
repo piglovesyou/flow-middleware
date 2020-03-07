@@ -115,6 +115,15 @@ export default function flow<TReqExt = {}, TResExt = {}>(
     });
 
     // @ts-ignore
+    global.req = req;
+    // @ts-ignore
+    global.res = res;
+    // @ts-ignore
+    global.reqDisposor = reqDisposor;
+    // @ts-ignore
+    global.resDisposor = resDisposor;
+
+    // @ts-ignore
     Reflect.set(reqDisposor, 'res', wrappedRes);
     // @ts-ignore
     Reflect.set(resDisposor, 'req', wrappedReq);
