@@ -7,6 +7,8 @@ import { createServer, get as httpGet, Server } from 'http';
 import cookieParser from 'cookie-parser';
 import session from 'express-session';
 import flash from 'express-flash';
+import { Cookie, CookieJar } from "tough-cookie";
+import fetch from 'node-fetch'
 
 describe('Integration', () => {
   let server: Server;
@@ -15,7 +17,6 @@ describe('Integration', () => {
   });
   test('integration', async () => {
     const expect = 'Hello!';
-    let actual = '';
 
     // Creates a simple function that handles req and res.
     const middlewares = flow<Record<any, any>, Record<any, any>>(
@@ -28,6 +29,14 @@ describe('Integration', () => {
         ok(req.cookies);
         ok(req.session);
         ok(req.flash);
+
+        if (req.url === '/') {
+          req.session!.yeah = 'yeah';
+        } else if (req.url === '/second') {
+          assert.strictEqual(req.session!.yeah, 'yeah');
+        } else {
+          assert.fail();
+        }
         next();
       },
     );
@@ -48,21 +57,23 @@ describe('Integration', () => {
 
       // You can use properties that
       // the middlewares extend, if you want🚚
-      deepStrictEqual(reqExt.cookies, { a: 'a' });
+      ok(reqExt.cookies);
       ok(reqExt.session);
       ok(reqExt.flash);
 
       res.end('Hello!');
     }).listen(3030);
 
-    await new Promise((resolve, reject) => {
-      httpGet('http://localhost:3030', { headers: { cookie: 'a=a' } }, res => {
-        res.on('data', (data: any) => (actual += String(data)));
-        res.on('end', resolve);
-        res.on('error', reject);
-      });
+    const jar = new CookieJar()
+    const url = 'http://localhost:3030';
+    const actual = await fetch(url).then(res => {
+      const cookieStr = res.headers.get('set-cookie');
+      assert.strictEqual(typeof cookieStr ,'string');
+      jar.setCookieSync(cookieStr!, url);
+      return res.text();
     });
-
     assert.strictEqual(actual, expect);
+
+    await fetch(url + '/second', {headers: {cookie: jar.getCookiesSync(url).join('; ')}})
   });
 });
