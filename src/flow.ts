@@ -19,11 +19,6 @@ function getProxyGetter<T extends object>(
     if (Reflect.has(disposor, property)) {
       // Arbitrary properties such as "session"
       return Reflect.get(disposor, property);
-    } else if (Reflect.has(expressProto, property)) {
-      // Access to express API.
-      const value = Reflect.get(expressProto, property);
-      if (typeof value === 'function') return value.bind(nativeObj);
-      return value;
     } else if (Reflect.has(nativeObj, property)) {
       // Access to the original http.IncomingMessage
 
@@ -33,6 +28,12 @@ function getProxyGetter<T extends object>(
       }
 
       if (typeof value === 'function') return value.bind(nativeObj);
+      return value;
+    } else if (Reflect.has(expressProto, property)) {
+      // Express proto should come to the last because it extends IncomingMessage.
+      // Access to express API.
+      const value = Reflect.get(expressProto, property);
+      if (typeof value === 'function') return value.bind(proxyObj);
       return value;
     }
 
@@ -110,6 +111,11 @@ export default function flow<TReqExt = {}, TResExt = {}>(
       defineProperty: getProxyDefineProeprpty(res, reqDisposor),
     });
 
+    // @ts-ignore
+    Reflect.set(reqDisposor, 'res', wrappedRes);
+    // @ts-ignore
+    Reflect.set(resDisposor, 'req', wrappedReq);
+
     // TODO: This goes wrong. Why?
     // expressInit(wrappedReq, wrappedRes, () => { throw new Error('Wait, who calls me?')});
 
@@ -123,9 +129,9 @@ export default function flow<TReqExt = {}, TResExt = {}>(
       } catch (e) {
         console.error(e);
         throw new Error(
-          `[flow-middlewares] Error occurs in middleware ${i + 1}: ${String(
-            middlewares[i],
-          )}`,
+          `[flow-middlewares] Error occurs in middleware ${i + 1}: ${
+            middlewares[i].name
+          }`,
         );
       }
     }
