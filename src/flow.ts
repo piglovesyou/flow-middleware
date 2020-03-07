@@ -7,6 +7,14 @@ import { IncomingMessage, ServerResponse } from 'http';
 import { promisify } from 'util';
 import { THandler } from './types';
 
+function enforceThisArg(fn: any, thisArg: any) {
+  return new Proxy(fn, {
+    apply(target: any, _: any, argArray?: any): any {
+      return Reflect.apply(fn, thisArg, argArray);
+    },
+  });
+}
+
 function getProxyGetter<T extends object>(
   nativeObj: IncomingMessage | ServerResponse,
   disposor: Record<any, any>,
@@ -64,13 +72,6 @@ function getProxyDefineProeprpty<T extends object>(
   disposor: Record<any, any>,
   // expressProto: typeof expressReqProto | typeof expressResProto,
 ) {
-  const wrap: any = (fn: any) => {
-    return new Proxy(fn, {
-      apply(target: any, thisArg: any, argArray?: any): any {
-        return Reflect.apply(fn, nativeObj, argArray);
-      },
-    });
-  };
   const proxyFn: ProxyHandler<T>['defineProperty'] = (
     _,
     property: string | number | symbol,
@@ -80,10 +81,12 @@ function getProxyDefineProeprpty<T extends object>(
       throw new Error('what?');
     }
 
-    if (attributes.get) attributes.get = wrap(attributes.get);
-    if (attributes.set) attributes.set = wrap(attributes.set);
+    if (attributes.get)
+      attributes.get = enforceThisArg(attributes.get, nativeObj);
+    if (attributes.set)
+      attributes.set = enforceThisArg(attributes.set, nativeObj);
     if (attributes.value && typeof attributes.value === 'function')
-      attributes.value = wrap(attributes.value);
+      attributes.value = enforceThisArg(attributes.value, nativeObj);
 
     return Reflect.defineProperty(_, property, attributes);
   };
