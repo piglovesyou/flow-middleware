@@ -39,12 +39,12 @@ function wrapWithProxy(
   // Wrap req and res
   const proxy = new Proxy<any>(disposor, {
     get(_, property, proxyObj) {
+      // Arbitrary properties such as "session"
       if (Reflect.has(disposor, property)) {
-        // Arbitrary properties such as "session"
         return Reflect.get(disposor, property);
-      } else if (Reflect.has(nativeObj, property)) {
-        // Access to the original http.IncomingMessage
 
+        // Access to the original http.IncomingMessage
+      } else if (Reflect.has(nativeObj, property)) {
         const value = Reflect.get(nativeObj, property);
         // TODO: Better patch for Passport
         if (property === 'login' || property === 'logIn') {
@@ -54,15 +54,16 @@ function wrapWithProxy(
         if (typeof value === 'function')
           return enforceThisArg(value, nativeObj);
         return value;
+
+        // Express proto should come to the last because it extends
+        // IncomingMessage.
       } else if (Reflect.has(expressProto, property)) {
-        // Express proto should come to the last because it extends IncomingMessage.
-        // Access to express API.
         const value = Reflect.get(expressProto, property, proxyObj);
         if (typeof value === 'function') return value.bind(proxyObj);
         return value;
       }
 
-      // Not found so returning undefined
+      // Not found so it must be very "undefined"
       return undefined;
     },
     set(_, property, value) {
