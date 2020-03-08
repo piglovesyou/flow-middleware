@@ -66,10 +66,9 @@ function wrapWithProxy(
       return undefined;
     },
     set(_, property, value) {
-      // "_header" etc.
-      if (Reflect.has(nativeObj, property)) {
+      // Node internal setter call
+      if (Reflect.has(nativeObj, property))
         return Reflect.set(nativeObj, property, value);
-      }
 
       return Reflect.set(disposor, property, value);
     },
