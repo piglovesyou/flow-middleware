@@ -10,6 +10,7 @@ import flash from 'express-flash';
 import { Cookie, CookieJar } from 'tough-cookie';
 import fetch from 'node-fetch';
 import cookieSession from 'cookie-session';
+import { getPortPromise } from 'portfinder';
 
 describe('Integration', () => {
   let server: Server;
@@ -20,6 +21,7 @@ describe('Integration', () => {
 
   test('express-session, flash', async () => {
     const expect = 'Hello!';
+    const port = await getPortPromise();
 
     // Creates a simple function that handles req and res.
     const middlewares = flow<Record<any, any>, Record<any, any>>(
@@ -69,10 +71,10 @@ describe('Integration', () => {
       ok(reqExt.flash);
 
       res.end('Hello!');
-    }).listen(3030);
+    }).listen(port);
 
     const jar = new CookieJar();
-    const url = 'http://localhost:3030';
+    const url = `http://localhost:${port}`;
     const actual = await fetch(url).then(res => {
       const cookieStr = res.headers.get('set-cookie');
       assert.strictEqual(typeof cookieStr, 'string');
@@ -88,6 +90,7 @@ describe('Integration', () => {
 
   // TODO: split test files
   test('cookie-session', async () => {
+    const port = await getPortPromise();
     const expect = 'Hello!';
 
     // Creates a simple function that handles req and res.
@@ -123,10 +126,10 @@ describe('Integration', () => {
       ok(reqExt.session);
 
       res.end('Hello!');
-    }).listen(3030);
+    }).listen(port);
 
     const jar = new CookieJar();
-    const url = 'http://localhost:3030';
+    const url = `http://localhost:${port}`;
     const actual = await fetch(url).then(res => {
       const cookieStr = res.headers.get('set-cookie');
       assert.strictEqual(typeof cookieStr, 'string');
