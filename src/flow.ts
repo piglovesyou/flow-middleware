@@ -7,6 +7,20 @@ import { IncomingMessage, ServerResponse } from 'http';
 import { promisify } from 'util';
 import { THandler } from './types';
 
+// Since some guys behave in [pretty bad manner](https://github.com/jaredhanson/passport/blob/4ca43dac54f7ffbf97fba5c917463e7f19639d51/lib/framework/connect.js#L33-L38),
+// we have to know what these properties are and proxy "this" arg on these functions.
+const knownPropertiesExtendedInBadManner = [
+  'login ',
+  'logIn',
+  'logout',
+  'logOut ',
+  'isAuthenticated ',
+  'isUnauthenticated ',
+].reduce(
+  (acc, property) => ({ ...acc, [property]: true }),
+  {} as Record<string, boolean>,
+);
+
 const expressApp = express();
 
 function enforceThisArg(fn: any, thisArg: any) {
@@ -31,20 +45,6 @@ function enforceThisArgOnPropertyDescriptor(
   return { ...desc, ...ext };
 }
 
-// Since some guys behave in [pretty bad manner](https://github.com/jaredhanson/passport/blob/4ca43dac54f7ffbf97fba5c917463e7f19639d51/lib/framework/connect.js#L33-L38),
-// we have to know what these properties are and proxy "this" arg on these functions.
-const knownExtendedPropertiesOnNativeProto = [
-  'login ',
-  'logIn',
-  'logout',
-  'logOut ',
-  'isAuthenticated ',
-  'isUnauthenticated ',
-].reduce(
-  (acc, property) => ({ ...acc, [property]: true }),
-  {} as Record<string, boolean>,
-);
-
 function wrapWithProxy(
   disposor: any,
   nativeObj: IncomingMessage | ServerResponse,
@@ -62,7 +62,7 @@ function wrapWithProxy(
         const value = Reflect.get(nativeObj, property);
 
         if (
-          Reflect.has(knownExtendedPropertiesOnNativeProto, property) &&
+          Reflect.has(knownPropertiesExtendedInBadManner, property) &&
           typeof value === 'function'
         ) {
           return enforceThisArg(value, proxyObj);
