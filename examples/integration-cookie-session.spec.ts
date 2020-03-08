@@ -4,11 +4,9 @@ import { promisify } from 'util';
 import flow from '../src/flow';
 import assert, { ok } from 'assert';
 import { createServer, Server } from 'http';
-import cookieParser from 'cookie-parser';
-import session from 'express-session';
-import flash from 'express-flash';
 import { CookieJar } from 'tough-cookie';
 import fetch from 'node-fetch';
+import cookieSession from 'cookie-session';
 import { getPortPromise } from 'portfinder';
 
 describe('Integration', () => {
@@ -18,30 +16,23 @@ describe('Integration', () => {
     await promisify(server.close).call(server);
   });
 
-  test('express-session, flash', async () => {
-    const expect = 'Hello!';
+  test('cookie-session', async () => {
     const port = await getPortPromise();
+    const expect = 'Hello!';
 
     // Creates a simple function that handles req and res.
     const middlewares = flow<Record<any, any>, Record<any, any>>(
-      cookieParser(),
-      session({ secret: 'x', resave: true, saveUninitialized: true }),
-      flash(),
+      cookieSession({
+        name: 'passportSession',
+        signed: false,
+      }),
       (req, _res, next) => {
-        // cookie-session's supposed to embed "session" property,
-        // but it's clean since our proxy wipes them out✨
-        ok(req.cookies);
         ok(req.session);
-        ok(req.flash);
 
         if (req.url === '/') {
           req.session!.yeah = 'yeah';
         } else if (req.url === '/second') {
-          assert.strictEqual(
-            req.session!.yeah,
-            'yeah',
-            'second request should use value that first request set in the session.',
-          );
+          assert.strictEqual(req.session!.yeah, 'yeah');
         } else {
           assert.fail();
         }
@@ -53,21 +44,10 @@ describe('Integration', () => {
       // Let's pass native req and res through Express middlewares
       const [proxiedReq, _proxiedRes] = await middlewares(req, res);
 
-      // The native objects are still clean
-      // since our proxy protects them from getting dirty✨
-
-      // @ts-ignore
-      ok(req.cookies === undefined);
       // @ts-ignore
       ok(req.session === undefined);
-      // @ts-ignore
-      ok(req.flash === undefined);
 
-      // You can use properties that the middlewares
-      // extend through proxied object, if you want🚚
-      ok(proxiedReq.cookies);
       ok(proxiedReq.session);
-      ok(proxiedReq.flash);
 
       res.end('Hello!');
     }).listen(port);
