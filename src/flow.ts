@@ -147,57 +147,8 @@ export default function flow<TReqExt = {}, TResExt = {}>(
     const reqDisposor = {} as TReqExt;
     const resDisposor = {} as TResExt;
 
-    // Wrap req and res
     const wrappedReq = wrapWithProxy(req, reqDisposor, expressReqProto);
-    // const wrappedReq = new Proxy<any>(reqDisposor, {
-    //   get: getProxyGetter(req, reqDisposor, expressReqProto),
-    //   set: getProxySetter(req, reqDisposor),
-    //   defineProperty(
-    //     _,
-    //     property: string | number | symbol,
-    //     desc: PropertyDescriptor,
-    //   ) {
-    //     // Node core object never extends its properties.
-    //     if (Reflect.has(req, property)) throw new Error('never');
-    //
-    //     // This is the case that Express middlewares extend
-    //     // Node object's property. If it's a function, we always enforce it
-    //     // to be called with our proxied "this" object.
-    //     const enforced = enforceThisArgOnPropertyDescriptor(desc, wrappedReq);
-    //
-    //     return Reflect.defineProperty(_, property, enforced);
-    //   },
-    // });
-
-    const wrappedRes = new Proxy<any>(resDisposor, {
-      get: getProxyGetter(res, resDisposor, expressResProto),
-      set: getProxySetter(res, resDisposor),
-      // defineProperty: getProxyDefineProeprpty(res, reqDisposor),
-      defineProperty(
-        _,
-        property: string | number | symbol,
-        desc: PropertyDescriptor,
-      ) {
-        // Node core object never extends its properties.
-        if (Reflect.has(res, property)) throw new Error('never');
-
-        // This is the case that Express middlewares extend
-        // Node object's property. If it's a function, we always enforce it
-        // to be called with our proxied "this" object.
-        const enforced = enforceThisArgOnPropertyDescriptor(desc, wrappedRes);
-
-        return Reflect.defineProperty(_, property, enforced);
-      },
-    });
-
-    // @ts-ignore
-    global.req = req;
-    // @ts-ignore
-    global.res = res;
-    // @ts-ignore
-    global.reqDisposor = reqDisposor;
-    // @ts-ignore
-    global.resDisposor = resDisposor;
+    const wrappedRes = wrapWithProxy(res, resDisposor, expressResProto);
 
     // @ts-ignore
     Reflect.set(reqDisposor, 'res', wrappedRes);
