@@ -86,12 +86,12 @@ describe('Integration', () => {
     });
   });
 
+  // TODO: split test files
   test('cookie-session', async () => {
     const expect = 'Hello!';
 
     // Creates a simple function that handles req and res.
     const middlewares = flow<Record<any, any>, Record<any, any>>(
-      // cookieParser(),
       cookieSession({
         name: 'passportSession',
         signed: false,

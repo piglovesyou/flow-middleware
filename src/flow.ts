@@ -1,4 +1,4 @@
-import {
+import express, {
   Handler,
   request as expressReqProto,
   response as expressResProto,
@@ -6,6 +6,8 @@ import {
 import { IncomingMessage, ServerResponse } from 'http';
 import { promisify } from 'util';
 import { THandler } from './types';
+
+const expressApp = express();
 
 function enforceThisArg(fn: any, thisArg: any) {
   return new Proxy(fn, {
@@ -31,16 +33,17 @@ function getProxyGetter<T extends object>(
       // Access to the original http.IncomingMessage
 
       const value = Reflect.get(nativeObj, property);
+      // TODO: Better patch for Passport
       if (property === 'login' || property === 'logIn') {
         return value.bind(proxyObj);
       }
 
-      if (typeof value === 'function') return value.bind(nativeObj);
+      if (typeof value === 'function') return enforceThisArg(value, nativeObj); // return value.bind(nativeObj);
       return value;
     } else if (Reflect.has(expressProto, property)) {
       // Express proto should come to the last because it extends IncomingMessage.
       // Access to express API.
-      const value = Reflect.get(expressProto, property);
+      const value = Reflect.get(expressProto, property, proxyObj);
       if (typeof value === 'function') return value.bind(proxyObj);
       return value;
     }
@@ -106,12 +109,48 @@ export default function flow<TReqExt = {}, TResExt = {}>(
     const wrappedReq = new Proxy<any>(reqDisposor, {
       get: getProxyGetter(req, reqDisposor, expressReqProto),
       set: getProxySetter(req, reqDisposor),
-      defineProperty: getProxyDefineProeprpty(req, reqDisposor),
+      defineProperty(
+        _,
+        property: string | number | symbol,
+        attributes: PropertyDescriptor,
+      ) {
+        const nativeObj = req;
+
+        if (Reflect.has(nativeObj, property)) throw new Error('what?');
+
+        if (attributes.get)
+          attributes.get = enforceThisArg(attributes.get, wrappedReq);
+        if (attributes.set)
+          attributes.set = enforceThisArg(attributes.set, wrappedReq);
+        if (attributes.value && typeof attributes.value === 'function')
+          attributes.value = enforceThisArg(attributes.value, wrappedReq);
+
+        return Reflect.defineProperty(_, property, attributes);
+      },
     });
     const wrappedRes = new Proxy<any>(resDisposor, {
       get: getProxyGetter(res, resDisposor, expressResProto),
       set: getProxySetter(res, resDisposor),
-      defineProperty: getProxyDefineProeprpty(res, reqDisposor),
+      // defineProperty: getProxyDefineProeprpty(res, reqDisposor),
+      defineProperty(
+        _,
+        property: string | number | symbol,
+        attributes: PropertyDescriptor,
+      ) {
+        const nativeObj = res;
+        if (Reflect.has(nativeObj, property)) {
+          throw new Error('what?');
+        }
+
+        if (attributes.get)
+          attributes.get = enforceThisArg(attributes.get, wrappedReq);
+        if (attributes.set)
+          attributes.set = enforceThisArg(attributes.set, wrappedReq);
+        if (attributes.value && typeof attributes.value === 'function')
+          attributes.value = enforceThisArg(attributes.value, wrappedReq);
+
+        return Reflect.defineProperty(_, property, attributes);
+      },
     });
 
     // @ts-ignore
@@ -126,7 +165,11 @@ export default function flow<TReqExt = {}, TResExt = {}>(
     // @ts-ignore
     Reflect.set(reqDisposor, 'res', wrappedRes);
     // @ts-ignore
+    Reflect.set(reqDisposor, 'app', expressApp);
+    // @ts-ignore
     Reflect.set(resDisposor, 'req', wrappedReq);
+    // @ts-ignore
+    Reflect.set(resDisposor, 'app', expressApp);
 
     // TODO: This goes wrong. Why?
     // expressInit(wrappedReq, wrappedRes, () => { throw new Error('Wait, who calls me?')});
