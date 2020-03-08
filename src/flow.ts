@@ -70,32 +70,6 @@ function getProxySetter<T extends object>(
   return proxySetter;
 }
 
-function getProxyDefineProeprpty<T extends object>(
-  nativeObj: IncomingMessage | ServerResponse,
-  disposor: Record<any, any>,
-  // expressProto: typeof expressReqProto | typeof expressResProto,
-) {
-  const proxyFn: ProxyHandler<T>['defineProperty'] = (
-    _,
-    property: string | number | symbol,
-    attributes: PropertyDescriptor,
-  ) => {
-    if (Reflect.has(nativeObj, property)) {
-      throw new Error('what?');
-    }
-
-    if (attributes.get)
-      attributes.get = enforceThisArg(attributes.get, nativeObj);
-    if (attributes.set)
-      attributes.set = enforceThisArg(attributes.set, nativeObj);
-    if (attributes.value && typeof attributes.value === 'function')
-      attributes.value = enforceThisArg(attributes.value, nativeObj);
-
-    return Reflect.defineProperty(_, property, attributes);
-  };
-  return proxyFn;
-}
-
 function enforceThisArgOnPropertyDescriptor(
   desc: PropertyDescriptor,
   thisArg: any,
@@ -117,8 +91,44 @@ function wrapWithProxy(
 ) {
   // Wrap req and res
   const proxy = new Proxy<any>(disposor, {
-    get: getProxyGetter(nativeObj, disposor, expressProto),
-    set: getProxySetter(nativeObj, disposor),
+    get(_, property, proxyObj) {
+      // let obj: any;
+      // let thisContext: any;
+
+      if (Reflect.has(disposor, property)) {
+        // Arbitrary properties such as "session"
+        return Reflect.get(disposor, property);
+      } else if (Reflect.has(nativeObj, property)) {
+        // Access to the original http.IncomingMessage
+
+        const value = Reflect.get(nativeObj, property);
+        // TODO: Better patch for Passport
+        if (property === 'login' || property === 'logIn') {
+          return value.bind(proxyObj);
+        }
+
+        if (typeof value === 'function')
+          return enforceThisArg(value, nativeObj);
+        return value;
+      } else if (Reflect.has(expressProto, property)) {
+        // Express proto should come to the last because it extends IncomingMessage.
+        // Access to express API.
+        const value = Reflect.get(expressProto, property, proxyObj);
+        if (typeof value === 'function') return value.bind(proxyObj);
+        return value;
+      }
+
+      // Not found so returning undefined
+      return undefined;
+    },
+    set(_, property, value) {
+      // "_header" etc.
+      if (Reflect.has(nativeObj, property)) {
+        return Reflect.set(nativeObj, property, value);
+      }
+
+      return Reflect.set(disposor, property, value);
+    },
     defineProperty(
       _,
       property: string | number | symbol,
