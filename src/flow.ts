@@ -31,6 +31,20 @@ function enforceThisArgOnPropertyDescriptor(
   return { ...desc, ...ext };
 }
 
+// Since some guys behave in [pretty bad manner](https://github.com/jaredhanson/passport/blob/4ca43dac54f7ffbf97fba5c917463e7f19639d51/lib/framework/connect.js#L33-L38),
+// we have to know what these properties are and proxy "this" arg on these functions.
+const knownExtendedPropertiesOnNativeProto = [
+  'login ',
+  'logIn',
+  'logout',
+  'logOut ',
+  'isAuthenticated ',
+  'isUnauthenticated ',
+].reduce(
+  (acc, property) => ({ ...acc, [property]: true }),
+  {} as Record<string, boolean>,
+);
+
 function wrapWithProxy(
   nativeObj: IncomingMessage | ServerResponse,
   disposor: any,
@@ -46,9 +60,12 @@ function wrapWithProxy(
         // Access to the original http.IncomingMessage
       } else if (Reflect.has(nativeObj, property)) {
         const value = Reflect.get(nativeObj, property);
-        // TODO: Better patch for Passport
-        if (property === 'login' || property === 'logIn') {
-          return value.bind(proxyObj);
+
+        if (
+          Reflect.has(knownExtendedPropertiesOnNativeProto, property) &&
+          typeof value === 'function'
+        ) {
+          return enforceThisArg(value, proxyObj);
         }
 
         if (typeof value === 'function')
@@ -59,7 +76,7 @@ function wrapWithProxy(
         // IncomingMessage.
       } else if (Reflect.has(expressProto, property)) {
         const value = Reflect.get(expressProto, property, proxyObj);
-        if (typeof value === 'function') return value.bind(proxyObj);
+        if (typeof value === 'function') return enforceThisArg(value, proxyObj);
         return value;
       }
 
