@@ -1,4 +1,4 @@
-# flow-middleware
+# flow-middleware ![Node CI](https://github.com/piglovesyou/flow-middleware/workflows/Node%20CI/badge.svg) [![npm version](https://badge.fury.io/js/flow-middleware.svg)](https://badge.fury.io/js/flow-middleware)
 
 Run Express middlewares on anywhere
 
