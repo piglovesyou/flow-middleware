@@ -96,6 +96,48 @@ function getProxyDefineProeprpty<T extends object>(
   return proxyFn;
 }
 
+function enforceThisArgOnPropertyDescriptor(
+  desc: PropertyDescriptor,
+  thisArg: any,
+) {
+  const ext: Partial<PropertyDescriptor> = {};
+
+  if (desc.get) ext.get = enforceThisArg(desc.get, thisArg);
+  if (desc.set) ext.set = enforceThisArg(desc.set, thisArg);
+  if (desc.value && typeof desc.value === 'function')
+    ext.value = enforceThisArg(desc.value, thisArg);
+
+  return { ...desc, ...ext };
+}
+
+function wrapWithProxy(
+  nativeObj: IncomingMessage | ServerResponse,
+  disposor: any,
+  expressProto: typeof expressReqProto | typeof expressResProto,
+) {
+  // Wrap req and res
+  const proxy = new Proxy<any>(disposor, {
+    get: getProxyGetter(nativeObj, disposor, expressProto),
+    set: getProxySetter(nativeObj, disposor),
+    defineProperty(
+      _,
+      property: string | number | symbol,
+      desc: PropertyDescriptor,
+    ) {
+      // Node core object never extends its properties.
+      if (Reflect.has(nativeObj, property)) throw new Error('never');
+
+      // This is the case that Express middlewares extend
+      // Node object's property. If it's a function, we always enforce it
+      // to be called with our proxied "this" object.
+      const enforced = enforceThisArgOnPropertyDescriptor(desc, proxy);
+
+      return Reflect.defineProperty(_, property, enforced);
+    },
+  });
+  return proxy;
+}
+
 export default function flow<TReqExt = {}, TResExt = {}>(
   ...middlewares: Handler[]
 ) {
@@ -106,28 +148,27 @@ export default function flow<TReqExt = {}, TResExt = {}>(
     const resDisposor = {} as TResExt;
 
     // Wrap req and res
-    const wrappedReq = new Proxy<any>(reqDisposor, {
-      get: getProxyGetter(req, reqDisposor, expressReqProto),
-      set: getProxySetter(req, reqDisposor),
-      defineProperty(
-        _,
-        property: string | number | symbol,
-        attributes: PropertyDescriptor,
-      ) {
-        const nativeObj = req;
+    const wrappedReq = wrapWithProxy(req, reqDisposor, expressReqProto);
+    // const wrappedReq = new Proxy<any>(reqDisposor, {
+    //   get: getProxyGetter(req, reqDisposor, expressReqProto),
+    //   set: getProxySetter(req, reqDisposor),
+    //   defineProperty(
+    //     _,
+    //     property: string | number | symbol,
+    //     desc: PropertyDescriptor,
+    //   ) {
+    //     // Node core object never extends its properties.
+    //     if (Reflect.has(req, property)) throw new Error('never');
+    //
+    //     // This is the case that Express middlewares extend
+    //     // Node object's property. If it's a function, we always enforce it
+    //     // to be called with our proxied "this" object.
+    //     const enforced = enforceThisArgOnPropertyDescriptor(desc, wrappedReq);
+    //
+    //     return Reflect.defineProperty(_, property, enforced);
+    //   },
+    // });
 
-        if (Reflect.has(nativeObj, property)) throw new Error('what?');
-
-        if (attributes.get)
-          attributes.get = enforceThisArg(attributes.get, wrappedReq);
-        if (attributes.set)
-          attributes.set = enforceThisArg(attributes.set, wrappedReq);
-        if (attributes.value && typeof attributes.value === 'function')
-          attributes.value = enforceThisArg(attributes.value, wrappedReq);
-
-        return Reflect.defineProperty(_, property, attributes);
-      },
-    });
     const wrappedRes = new Proxy<any>(resDisposor, {
       get: getProxyGetter(res, resDisposor, expressResProto),
       set: getProxySetter(res, resDisposor),
@@ -135,21 +176,17 @@ export default function flow<TReqExt = {}, TResExt = {}>(
       defineProperty(
         _,
         property: string | number | symbol,
-        attributes: PropertyDescriptor,
+        desc: PropertyDescriptor,
       ) {
-        const nativeObj = res;
-        if (Reflect.has(nativeObj, property)) {
-          throw new Error('what?');
-        }
+        // Node core object never extends its properties.
+        if (Reflect.has(res, property)) throw new Error('never');
 
-        if (attributes.get)
-          attributes.get = enforceThisArg(attributes.get, wrappedReq);
-        if (attributes.set)
-          attributes.set = enforceThisArg(attributes.set, wrappedReq);
-        if (attributes.value && typeof attributes.value === 'function')
-          attributes.value = enforceThisArg(attributes.value, wrappedReq);
+        // This is the case that Express middlewares extend
+        // Node object's property. If it's a function, we always enforce it
+        // to be called with our proxied "this" object.
+        const enforced = enforceThisArgOnPropertyDescriptor(desc, wrappedRes);
 
-        return Reflect.defineProperty(_, property, attributes);
+        return Reflect.defineProperty(_, property, enforced);
       },
     });
 
