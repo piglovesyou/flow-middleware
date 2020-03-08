@@ -46,16 +46,16 @@ function enforceThisArgOnPropertyDescriptor(
 }
 
 function wrapWithProxy(
-  disposor: any,
+  payload: any,
   nativeObj: IncomingMessage | ServerResponse,
   expressProto: typeof expressReqProto | typeof expressResProto,
 ) {
   // Wrap req and res
-  const proxy = new Proxy<any>(disposor, {
+  const proxy = new Proxy<any>(payload, {
     get(_, property, proxyObj) {
       // Arbitrary properties such as "session"
-      if (Reflect.has(disposor, property)) {
-        return Reflect.get(disposor, property);
+      if (Reflect.has(payload, property)) {
+        return Reflect.get(payload, property);
 
         // Access to the original http.IncomingMessage
       } else if (Reflect.has(nativeObj, property)) {
@@ -88,7 +88,7 @@ function wrapWithProxy(
       if (Reflect.has(nativeObj, property))
         return Reflect.set(nativeObj, property, value);
 
-      return Reflect.set(disposor, property, value);
+      return Reflect.set(payload, property, value);
     },
     defineProperty(
       _,
