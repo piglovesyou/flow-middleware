@@ -46,8 +46,8 @@ const knownExtendedPropertiesOnNativeProto = [
 );
 
 function wrapWithProxy(
-  nativeObj: IncomingMessage | ServerResponse,
   disposor: any,
+  nativeObj: IncomingMessage | ServerResponse,
   expressProto: typeof expressReqProto | typeof expressResProto,
 ) {
   // Wrap req and res
@@ -109,29 +109,28 @@ function wrapWithProxy(
   return proxy;
 }
 
+// https://github.com/expressjs/express/blob/c087a45b9cc3eb69c777e260ee880758b6e03a40/lib/middleware/init.js#L28-L42
+function emulateExpressInit(proxiedReq: any, proxiedRes: any) {
+  Reflect.set(proxiedReq, 'res', proxiedRes);
+  Reflect.set(proxiedReq, 'app', expressApp);
+  Reflect.set(proxiedRes, 'req', proxiedReq);
+  Reflect.set(proxiedRes, 'app', expressApp);
+  Reflect.set(proxiedRes, 'locals', proxiedRes.locals || Object.create(null));
+}
+
 export default function flow<TReqExt = {}, TResExt = {}>(
   ...middlewares: Handler[]
 ) {
   const promisifiedMiddlewares = middlewares.map(m => promisify<any, any>(m));
 
   const handler: THandler<TReqExt, TResExt> = async (req, res) => {
-    const reqDisposor = {} as TReqExt;
-    const resDisposor = {} as TResExt;
+    const reqPayload = {} as TReqExt;
+    const resPayload = {} as TResExt;
 
-    const wrappedReq = wrapWithProxy(req, reqDisposor, expressReqProto);
-    const wrappedRes = wrapWithProxy(res, resDisposor, expressResProto);
+    const proxiedReq = wrapWithProxy(reqPayload, req, expressReqProto);
+    const proxiedRes = wrapWithProxy(resPayload, res, expressResProto);
 
-    // @ts-ignore
-    Reflect.set(reqDisposor, 'res', wrappedRes);
-    // @ts-ignore
-    Reflect.set(reqDisposor, 'app', expressApp);
-    // @ts-ignore
-    Reflect.set(resDisposor, 'req', wrappedReq);
-    // @ts-ignore
-    Reflect.set(resDisposor, 'app', expressApp);
-
-    // TODO: This goes wrong. Why?
-    // expressInit(wrappedReq, wrappedRes, () => { throw new Error('Wait, who calls me?')});
+    emulateExpressInit(proxiedReq, proxiedRes);
 
     for (
       let i = 0, m = promisifiedMiddlewares[i];
@@ -139,18 +138,16 @@ export default function flow<TReqExt = {}, TResExt = {}>(
       m = promisifiedMiddlewares[++i]
     ) {
       try {
-        await m(wrappedReq, wrappedRes);
+        await m(proxiedReq, proxiedRes);
       } catch (e) {
         console.error(e);
         throw new Error(
-          `[flow-middlewares] Error occurs in middleware ${i + 1}: ${
-            middlewares[i].name
-          }`,
+          `[flow-middlewares] Error occurs in middleware index [${i}]: ${middlewares[i].name}`,
         );
       }
     }
 
-    return [reqDisposor, resDisposor];
+    return [proxiedReq, proxiedRes];
   };
 
   return handler;

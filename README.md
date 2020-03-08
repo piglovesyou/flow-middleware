@@ -59,7 +59,7 @@ const middlewares = flow(
 createServer(async (req, res) => {
   
   // Let's pass native req and res through Express middlewares
-  const [ reqExt, _resExt ] = await middlewares(req, res);
+  const [ proxiedReq, _proxiedRes ] = await middlewares(req, res);
 
   // The native objects are still clean
   // since our proxy protects them from getting dirty✨
@@ -67,11 +67,11 @@ createServer(async (req, res) => {
   ok(req.session === undefined);
   ok(req.flash === undefined);
 
-  // You can use properties that
-  // the middlewares extend, if you want🚚
-  ok(reqExt.cookies);
-  ok(reqExt.session);
-  ok(reqExt.flash);
+  // You can use properties that the middlewares
+  // extend through proxied object, if you want🚚
+  ok(proxiedReq.cookies);
+  ok(proxiedReq.session);
+  ok(proxiedReq.flash);
 
   res.end('Hello!');
 }).listen(3000);

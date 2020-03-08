@@ -41,7 +41,7 @@ describe('Integration', () => {
           assert.strictEqual(
             req.session!.yeah,
             'yeah',
-            'second request can use value in the session that first request set',
+            'second request should use value that first request set in the session.',
           );
         } else {
           assert.fail();
@@ -52,7 +52,7 @@ describe('Integration', () => {
 
     server = createServer(async (req, res) => {
       // Let's pass native req and res through Express middlewares
-      const [reqExt, _resExt] = await middlewares(req, res);
+      const [proxiedReq, _proxiedRes] = await middlewares(req, res);
 
       // The native objects are still clean
       // since our proxy protects them from getting dirty✨
@@ -64,11 +64,11 @@ describe('Integration', () => {
       // @ts-ignore
       ok(req.flash === undefined);
 
-      // You can use properties that
-      // the middlewares extend, if you want🚚
-      ok(reqExt.cookies);
-      ok(reqExt.session);
-      ok(reqExt.flash);
+      // You can use properties that the middlewares
+      // extend through proxied object, if you want🚚
+      ok(proxiedReq.cookies);
+      ok(proxiedReq.session);
+      ok(proxiedReq.flash);
 
       res.end('Hello!');
     }).listen(port);
