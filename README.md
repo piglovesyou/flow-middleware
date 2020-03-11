@@ -1,7 +1,12 @@
 # flow-middleware ![Node CI](https://github.com/piglovesyou/flow-middleware/workflows/Node%20CI/badge.svg) [![npm version](https://badge.fury.io/js/flow-middleware.svg)](https://badge.fury.io/js/flow-middleware)
 
-Run Express middlewares anywhere🚀
+Run Express middlewares on any Node.js server framework without hacking/polluting native `req`/`res` objects with Proxy.
 
+[Checkout the Next.js example](https://github.com/piglovesyou/nextjs-passport-oauth-example) with [Passport.js](http://www.passportjs.org/) integration.
+
+<details><summary><b>Why, How</b></summary>
+<p>
+    
 # Why
 
 As people start using a new Node server library other than [Express](https://expressjs.com/), they encounter a lack of middlewares that Express already has, which have been well tested and production-ready many years ago. Some of them try to shape a brand new ecosystem on the new island and some just go back to Express.
@@ -21,17 +26,22 @@ Wrapping `req` and `res` by `Proxy` to split using native methods and Express me
 
 In the end, flow-middleware returns the extended properties like `req.session` and `req.user` so you can use them after the middlewares go through.
 
+</p>
+</details>
+
+![flow-middleware architecture](resource/flow-middleware.png)
+
 # Getting started
 
-To install, run this.
+Install it with Express.
 
 ```bash
 yarn add flow-middleware express
 ```
 
-### `flow(...middlewares)`
+### flow(...middlewares)
 
-A function `flow` creates an http handler from Express middlewares, processed from left to right arguments.
+A function `flow` creates an http handler from some Express middlewares, processed from left to right of arguments.
 
 ```typescript
 import flow from 'flow-middleware';
@@ -41,83 +51,88 @@ import cookieParser from 'cookie-parser';
 import session from 'express-session';
 import flash from 'express-flash';
 
-// Creates a simple function that handles req and res.
-const middlewares = flow(
+// Creates an async function that handles req and res.
+const handle = flow(
     cookieParser(),
     session({ secret: 'x' }),
     flash(),
-    (req, _res, next) => {
-      // cookie-session's supposed to embed "session" property,
-      // but it's clean since our proxy wipes them out✨
-      ok(req.cookies);
-      ok(req.session);
-      ok(req.flash);
-      next();
+    (reqProxy, _resProxy, next) => {
+    
+        // Our wrapped objects provide accessors
+        // that Express middlewares extended💪
+        ok(reqProxy.cookies);
+        ok(reqProxy.session);
+        ok(reqProxy.flash);
+        next();
     }
 );
 
 createServer(async (req, res) => {
   
-  // Let's pass native req and res through Express middlewares
-  const [ proxiedReq, _proxiedRes ] = await middlewares(req, res);
+    // Let's run the Express middlewares🚀
+    const [ reqProxy, _resProxy ] = await handle(req, res);
 
-  // The native objects are still clean
-  // since our proxy protects them from getting dirty✨
-  ok(req.cookies === undefined);
-  ok(req.session === undefined);
-  ok(req.flash === undefined);
+    // Native objects are clean thanks to our proxy✨
+    ok(req.cookies === undefined);
+    ok(req.session === undefined);
+    ok(req.flash === undefined);
 
-  // You can use properties that the middlewares
-  // extend through proxied object, if you want🚚
-  ok(proxiedReq.cookies);
-  ok(proxiedReq.session);
-  ok(proxiedReq.flash);
+    // You still can access to Express properties here🚚
+    ok(reqProxy.cookies);
+    ok(reqProxy.session);
+    ok(reqProxy.flash);
+    ok(reqProxy.cookie);
+    ok(reqProxy.redirect);
 
-  res.end('Hello!');
+    res.end('Hello!');
 }).listen(3000);
 ```
 
-### `compose(...middlewares)(...middlewares)()`
+### compose(...middlewares)(...middlewares)()
 
-Another function `compose` lets you hold a set of middlewares and share it on other routes. **Calling it with no argument returns a handler function.**
+`compose` lets you hold a set of middlewares and share it on other routes. This is useful when you want the same initializing middlewares to come first while the different middlewares come at the end. **Calling it with zero arguments returns a handler function.** 
 
-This is the passport configure example where a login route and an OAuth callback route share initializing middlewares.
-
-First compose initializing middlewares,
+This is a Passport example where a login handler for `POST /api/auth/github` and an OAuth callback handler for `GET /api/auth/callback/github` share their initializing middlewares.
 
 ```typescript
 import cookieSession from 'cookie-session';
 import { compose } from 'flow-middleware';
 import passport from './passport';
 
-const composedMiddlewares = compose(
+const composed = compose(
     cookieSession(),
     passport.initialize(),
     passport.session()
 );
-export default composedMiddlewares
+
+const handleToLogIn = composed(passport.authenticate('github'))();
+
+const handleForCallback = composed(passport.authenticate('github', {
+    failureRedirect: '/auth',
+    successRedirect: '/',
+}))();
 ```
 
-Then multiple routes can share it like this. Don't forget to call with zero arguments to get a handler at last.
+Don't forget to call it with zero arguments at last to get a handler.
 
-In `POST /api/auth/github` for an example,
+#### Wrapper function style
+
+Or, you can simply write a wrapper function to share middlewares.
 
 ```typescript
-export default composedMiddlewares(passport.authenticate('github'))();
+import { Handler } from 'express';
+
+function withPassport(...middlewares: Handler[]) {
+    return flow(
+        cookieSession(),
+        passport.initialize(),
+        passport.session(),
+        ...middlewares
+    );
+}
 ```
 
-Another `GET /api/auth/callback/github` would look like this.
-
-```typescript
-export default composedMiddlewares(
-    passport.authenticate('github', {
-      failureRedirect: '/auth',
-      successRedirect: '/',
-    })
-)();
-```
-
-# LICENSE
+# License
 
 MIT
 
