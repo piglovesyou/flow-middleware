@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-unused-vars, @typescript-eslint/ban-ts-ignore */
+/* eslint-disable @typescript-eslint/no-unused-vars, @typescript-eslint/ban-ts-ignore, @typescript-eslint/no-non-null-assertion  */
 
 import { promisify } from 'util';
 import flow from '../src/flow';
