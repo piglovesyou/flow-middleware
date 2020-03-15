@@ -8,7 +8,7 @@
   "files": [
     "dist"
   ],
-  "dependencies": {
+  "peerDependencies": {
     "express": "^4.17.1"
   },
   "devDependencies": {
@@ -32,6 +32,7 @@
     "eslint-config-prettier": "^6.10.0",
     "eslint-plugin-jest": "^23.8.1",
     "eslint-plugin-prettier": "^3.1.2",
+    "express": "^4.17.1",
     "express-flash": "^0.0.2",
     "express-session": "^1.17.0",
     "husky": "^4.2.3",
