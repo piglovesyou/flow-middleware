@@ -1,6 +1,6 @@
 {
   "name": "flow-middleware",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "main": "dist/index.js",
   "repository": "git@github.com:piglovesyou/compose-middleware.git",
   "author": "piglovesyou <thepiglovesyou@gmail.com>",
