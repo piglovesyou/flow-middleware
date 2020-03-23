@@ -123,9 +123,9 @@ export default function flow<TReqExt = {}, TResExt = {}>(
 ) {
   const promisifiedMiddlewares = middlewares.map(m => promisify<any, any>(m));
 
-  const handler: THandler<TReqExt, TResExt> = async (req, res) => {
-    const reqPayload = {} as TReqExt;
-    const resPayload = {} as TResExt;
+  const handler: THandler<TResExt, TResExt> = async (req, res) => {
+    const reqPayload: Partial<TReqExt> = {};
+    const resPayload: Partial<TResExt> = {};
 
     const proxiedReq = wrapWithProxy(reqPayload, req, expressReqProto);
     const proxiedRes = wrapWithProxy(resPayload, res, expressResProto);
