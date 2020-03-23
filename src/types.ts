@@ -1,10 +1,16 @@
-import { Handler } from 'express';
+import {
+  Handler,
+  Request as ExpressRequest,
+  Response as ExpressResponse,
+} from 'express';
 import { IncomingMessage, ServerResponse } from 'http';
 
-export type THandler<ReqExt = {}, ResExt = {}> = (
+export type THandler<ReqExt, ResExt> = (
   req: IncomingMessage,
   res: ServerResponse,
-) => Promise<[ReqExt, ResExt]>;
+) => Promise<
+  [ExpressRequest & Partial<ReqExt>, ExpressResponse & Partial<ResExt>]
+>;
 
 export interface TCompose<ReqExt = {}, ResExt = {}> {
   <ReqExt, ResExt>(): THandler<ReqExt, ResExt>;

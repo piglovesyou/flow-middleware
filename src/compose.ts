@@ -4,9 +4,7 @@ import { TCompose } from './types';
 // import {init as getExpressInitializer} from 'express/lib/middleware/init';
 // const expressInit = getExpressInitializer(express());
 
-const compose: TCompose = function<ReqExt = {}, ResExt = {}>(
-  ...handlers: any
-): any {
+const compose: TCompose = function<ReqExt = {}, ResExt = {}>(...handlers: any) {
   if (!handlers.length) throw new Error('boom');
 
   // XXX: Better typing...?
