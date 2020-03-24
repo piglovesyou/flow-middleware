@@ -2,7 +2,7 @@
 
 import { promisify } from 'util';
 import flow from '../src/flow';
-import assert, { ok } from 'assert';
+import { ok, fail, strictEqual } from 'assert';
 import { createServer, Server } from 'http';
 import cookieParser from 'cookie-parser';
 import session from 'express-session';
@@ -37,13 +37,13 @@ describe('Integration', () => {
         if (req.url === '/') {
           req.session!.yeah = 'yeah';
         } else if (req.url === '/second') {
-          assert.strictEqual(
+          strictEqual(
             req.session!.yeah,
             'yeah',
             'second request should use value that first request set in the session.',
           );
         } else {
-          assert.fail();
+          fail();
         }
         next();
       },
@@ -51,7 +51,7 @@ describe('Integration', () => {
 
     server = createServer(async (req, res) => {
       // Let's pass native req and res through Express middlewares
-      const [proxiedReq, _proxiedRes] = await middlewares(req, res);
+      const [reqProxy, resProxy] = await middlewares(req, res);
 
       // The native objects are still clean
       // since our proxy protects them from getting dirty✨
@@ -65,9 +65,11 @@ describe('Integration', () => {
 
       // You can use properties that the middlewares
       // extend through proxied object, if you want🚚
-      ok(proxiedReq.cookies);
-      ok(proxiedReq.session);
-      ok(proxiedReq.flash);
+      ok(reqProxy.cookies);
+      ok(reqProxy.session);
+      ok(reqProxy.flash);
+      ok(resProxy.cookie);
+      ok(resProxy.redirect);
 
       res.end('Hello!');
     }).listen(port);
@@ -76,11 +78,11 @@ describe('Integration', () => {
     const url = `http://localhost:${port}`;
     const actual = await fetch(url).then(res => {
       const cookieStr = res.headers.get('set-cookie');
-      assert.strictEqual(typeof cookieStr, 'string');
+      strictEqual(typeof cookieStr, 'string');
       jar.setCookieSync(cookieStr!, url);
       return res.text();
     });
-    assert.strictEqual(actual, expect);
+    strictEqual(actual, expect);
 
     await fetch(url + '/second', {
       headers: { cookie: jar.getCookiesSync(url).join('; ') },

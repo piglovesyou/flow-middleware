@@ -70,7 +70,7 @@ const handle = flow(
 createServer(async (req, res) => {
   
     // Let's run the Express middlewares🚀
-    const [ reqProxy, _resProxy ] = await handle(req, res);
+    const [ reqProxy, resProxy ] = await handle(req, res);
 
     // Native objects are clean thanks to our proxy✨
     ok(req.cookies === undefined);
@@ -81,8 +81,8 @@ createServer(async (req, res) => {
     ok(reqProxy.cookies);
     ok(reqProxy.session);
     ok(reqProxy.flash);
-    ok(reqProxy.cookie);
-    ok(reqProxy.redirect);
+    ok(resProxy.cookie);
+    ok(resProxy.redirect);
 
     res.end('Hello!');
 }).listen(3000);
