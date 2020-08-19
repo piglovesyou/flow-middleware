@@ -44,7 +44,7 @@
     "tough-cookie": "^3.0.1",
     "ts-jest": "^25.2.1",
     "ts-node": "^8.6.2",
-    "typescript": "3.6.3"
+    "typescript": "3.9.7"
   },
   "husky": {
     "hooks": {
