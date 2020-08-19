@@ -18,7 +18,7 @@ describe('flow', () => {
     });
     server = createServer(handler).listen(3030);
     await new Promise((resolve, reject) => {
-      httpGet('http://localhost:3030', res => {
+      httpGet('http://localhost:3030', (res) => {
         res.on('data', (data: any) => (actual += String(data)));
         res.on('end', resolve);
         res.on('error', reject);

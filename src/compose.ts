@@ -1,10 +1,12 @@
 import flow from './flow';
-import { TCompose } from './types';
+import { AnyMap, TCompose } from './types';
 
 // import {init as getExpressInitializer} from 'express/lib/middleware/init';
 // const expressInit = getExpressInitializer(express());
 
-const compose: TCompose = function<ReqExt = {}, ResExt = {}>(...handlers: any) {
+const compose: TCompose = function <ReqExt = AnyMap, ResExt = AnyMap>(
+  ...handlers: any
+) {
   if (!handlers.length) throw new Error('boom');
 
   // XXX: Better typing...?

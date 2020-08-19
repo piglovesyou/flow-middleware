@@ -5,7 +5,7 @@ import express, {
 } from 'express';
 import { IncomingMessage, ServerResponse } from 'http';
 import { promisify } from 'util';
-import { THandler } from './types';
+import { AnyMap, THandler } from './types';
 
 // Since some guys behave in [pretty bad manner](https://github.com/jaredhanson/passport/blob/4ca43dac54f7ffbf97fba5c917463e7f19639d51/lib/framework/connect.js#L33-L38),
 // we have to know what these properties are and proxy "this" arg on these functions.
@@ -35,7 +35,7 @@ function enforceThisArgOnPropertyDescriptor(
   desc: PropertyDescriptor,
   thisArg: any,
 ) {
-  const ext: Partial<PropertyDescriptor> = {};
+  const ext: Partial<PropertyDescriptor> = Object.create(null);
 
   if (desc.get) ext.get = enforceThisArg(desc.get, thisArg);
   if (desc.set) ext.set = enforceThisArg(desc.set, thisArg);
@@ -118,14 +118,14 @@ function emulateExpressInit(proxiedReq: any, proxiedRes: any) {
   Reflect.set(proxiedRes, 'locals', proxiedRes.locals || Object.create(null));
 }
 
-export default function flow<TReqExt = {}, TResExt = {}>(
+export default function flow<TReqExt = AnyMap, TResExt = AnyMap>(
   ...middlewares: Handler[]
-) {
-  const promisifiedMiddlewares = middlewares.map(m => promisify<any, any>(m));
+): THandler<TResExt, TResExt> {
+  const promisifiedMiddlewares = middlewares.map((m) => promisify<any, any>(m));
 
   const handler: THandler<TResExt, TResExt> = async (req, res) => {
-    const reqPayload: Partial<TReqExt> = {};
-    const resPayload: Partial<TResExt> = {};
+    const reqPayload: Partial<TReqExt> = Object.create(null);
+    const resPayload: Partial<TResExt> = Object.create(null);
 
     const proxiedReq = wrapWithProxy(reqPayload, req, expressReqProto);
     const proxiedRes = wrapWithProxy(resPayload, res, expressResProto);
