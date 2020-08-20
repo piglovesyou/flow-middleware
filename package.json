@@ -41,7 +41,7 @@
     "node-fetch": "^2.6.0",
     "portfinder": "^1.0.25",
     "prettier": "^1.19.1",
-    "tough-cookie": "^3.0.1",
+    "tough-cookie": "^4.0.0",
     "ts-jest": "^25.2.1",
     "ts-node": "^8.6.2",
     "typescript": "3.6.3"
