@@ -5,6 +5,8 @@ import {
 } from 'express';
 import { IncomingMessage, ServerResponse } from 'http';
 
+export type AnyMap = Record<string, any>;
+
 export type THandler<ReqExt, ResExt> = (
   req: IncomingMessage,
   res: ServerResponse,
@@ -12,7 +14,7 @@ export type THandler<ReqExt, ResExt> = (
   [ExpressRequest & Partial<ReqExt>, ExpressResponse & Partial<ResExt>]
 >;
 
-export interface TCompose<ReqExt = {}, ResExt = {}> {
+export interface TCompose<ReqExt = AnyMap, ResExt = AnyMap> {
   <ReqExt, ResExt>(): THandler<ReqExt, ResExt>;
   <ReqExt, ResExt>(h1?: Handler): TCompose<ReqExt, ResExt>;
   <ReqExt, ResExt>(h1: Handler, h2: Handler): TCompose<ReqExt, ResExt>;

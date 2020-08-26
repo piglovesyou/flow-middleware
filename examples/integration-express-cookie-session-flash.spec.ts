@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-unused-vars, @typescript-eslint/ban-ts-ignore, @typescript-eslint/no-non-null-assertion  */
+/* eslint-disable @typescript-eslint/no-unused-vars, @typescript-eslint/ban-ts-comment, @typescript-eslint/no-non-null-assertion  */
 
 import { promisify } from 'util';
 import flow from '../src/flow';
@@ -76,7 +76,7 @@ describe('Integration', () => {
 
     const jar = new CookieJar();
     const url = `http://localhost:${port}`;
-    const actual = await fetch(url).then(res => {
+    const actual = await fetch(url).then((res) => {
       const cookieStr = res.headers.get('set-cookie');
       strictEqual(typeof cookieStr, 'string');
       jar.setCookieSync(cookieStr!, url);

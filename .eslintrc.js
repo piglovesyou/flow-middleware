@@ -13,13 +13,14 @@ module.exports = {
   ],
 
   env: {
+    node: true,
     jest: true,
   },
 
   rules: {
-    "prettier/prettier": "error",
-    "@typescript-eslint/no-explicit-any": "off",
-    "@typescript-eslint/explicit-function-return-type": "off",
-    "@typescript-eslint/ban-ts-ignore": "warn",
-  }
+    'prettier/prettier': 'error',
+    '@typescript-eslint/no-explicit-any': 'off',
+    '@typescript-eslint/explicit-function-return-type': 'off',
+    '@typescript-eslint/ban-ts-comment': 'warn',
+  },
 };
