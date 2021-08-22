@@ -20,7 +20,7 @@
     "@types/express-flash": "^0.0.2",
     "@types/express-session": "^1.17.0",
     "@types/jest": "^26.0.10",
-    "@types/node": "^14.6.0",
+    "@types/node": "^16.7.1",
     "@types/node-fetch": "^2.5.7",
     "@types/prettier": "^2.0.2",
     "@types/tough-cookie": "^4.0.0",
